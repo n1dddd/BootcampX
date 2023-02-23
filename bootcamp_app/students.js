@@ -1,7 +1,9 @@
 const { Pool } = require('pg');
 
-const args = process.argv.slice(2);
+const cohortName = process.argv[2];
+const limit = process.argv[3] || 5;
 
+const values = [`%${cohortName}`, limit];
 
 const pool = new Pool({
   user: 'vagrant',
@@ -11,16 +13,27 @@ const pool = new Pool({
   port: 5432
 });
 
-pool
-  .connect()
-  .then(() => console.log(`DB is running on port ${pool.port}`));
+const queryString = `
+SELECT students.id, students.name, cohorts.name as cohort_id
+FROM students
+JOIN cohorts on cohorts.id = cohort_id
+WHERE cohorts.name LIKE $1
+LIMIT $2;
+`;
 
-pool.query(`
+const queryString2 = `
 SELECT students.id, students.name, cohorts.name as cohort_id
 FROM students
 JOIN cohorts on cohorts.id = cohort_id
 LIMIT 5;
-`)
+`
+
+
+pool
+  .connect()
+  .then(() => console.log(`DB is running on port ${pool.port}`));
+
+pool.query(queryString2)
 .then(res => {
   res.rows.forEach(user => {
     console.log(`${user.name} has an id of ${user.id} and was in the ${user.cohort_id} cohort`)
@@ -28,13 +41,7 @@ LIMIT 5;
 })
 .catch(err => console.error('query error', err.stack));
 
-pool.query(`
-SELECT students.id, students.name, cohorts.name as cohort_id
-FROM students
-JOIN cohorts on cohorts.id = cohort_id
-WHERE cohorts.name LIKE '%${args[0]}%'
-LIMIT ${args[1]};
-`)
+pool.query(queryString,values)
 .then(res => {
   res.rows.forEach(user => {
     console.log(`${user.name} has an id of ${user.id} and was in the ${args[0]} cohort`);
